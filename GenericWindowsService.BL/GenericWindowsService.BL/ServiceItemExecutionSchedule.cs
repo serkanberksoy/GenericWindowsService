@@ -6,9 +6,10 @@ namespace GenericWindowsService.BL
 {
     public class ServiceItemExecutionSchedule : IExecutionSchedule
     {
+        private readonly Dictionary<DayOfWeek, List<TimeSpan>> _weeklySchedule;
+        private readonly Dictionary<byte, List<TimeSpan>> _monthlySchedule;
+
         public List<DateTime> OneTimeSchedule { get; set; }
-        private Dictionary<DayOfWeek, List<TimeSpan>> _weeklySchedule { get; set; }
-        private Dictionary<byte, List<TimeSpan>> _monthlySchedule { get; set; }
 
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
@@ -70,6 +71,28 @@ namespace GenericWindowsService.BL
             _monthlySchedule[month].Add(time);
         }
 
+        public List<TimeSpan> GetDailySchedule(DayOfWeek dayOfWeek, bool checkStartDate = true, bool checkEndDate = true)
+        {
+            List<TimeSpan> result = new List<TimeSpan>();
+
+            bool dateCheck = true;
+            dateCheck = checkStartDate ? CheckStartDate() : true;
+            dateCheck = checkEndDate && dateCheck ? CheckEndDate() : false;
+
+            if (checkStartDate || checkEndDate)
+            {
+                if (dateCheck)
+                {
+                    result = _weeklySchedule[dayOfWeek];
+                }
+            }
+            else
+            {
+                result = _weeklySchedule[dayOfWeek];
+            }
+
+            return result;
+        }
         public List<TimeSpan> GetMonthlySchedule(byte month, bool checkStartDate = true, bool checkEndDate = true)
         {
             List<TimeSpan> result = new List<TimeSpan>();
@@ -119,30 +142,6 @@ namespace GenericWindowsService.BL
             return result;
         }
 
-
-        public List<TimeSpan> GetDailySchedule(DayOfWeek dayOfWeek, bool checkStartDate = true, bool checkEndDate = true)
-        {
-            List<TimeSpan> result = new List<TimeSpan>();
-
-            bool dateCheck = true;
-            dateCheck = checkStartDate ? CheckStartDate() : true;
-            dateCheck = checkEndDate && dateCheck ? CheckEndDate() : false;
-
-            if (checkStartDate || checkEndDate)
-            {
-                if (dateCheck)
-                {
-                    result = _weeklySchedule[dayOfWeek];
-                }
-            }
-            else
-            {
-                result = _weeklySchedule[dayOfWeek];
-            }
-
-            return result;
-        }
-
         private bool CheckEndDate()
         {
             return EndDate == default(DateTime) || SystemTime.Now() <= EndDate;
@@ -152,30 +151,6 @@ namespace GenericWindowsService.BL
             return StartDate == default(DateTime) || SystemTime.Now() >= StartDate;
         }
 
-        public double GetNextItemMilliseconds()
-        {
-            double result;
-
-            double nextOneTimeItemInMilliseconds = GetNextOneTimeItemInMilliseconds();
-            double nextWeeklyItemMilliseconds = GetNextWeeklyItemMilliseconds(SystemTime.Now().DayOfWeek, SystemTime.Now());
-            double nextMonthlyItemMilliseconds = GetNextMonthlyItemMilliseconds((byte)SystemTime.Now().Month, SystemTime.Now());
-
-            result = nextOneTimeItemInMilliseconds > 0 ? nextOneTimeItemInMilliseconds : default(double);
-            result = nextWeeklyItemMilliseconds > 0
-                         ? result > 0
-                               ? Math.Min(result, nextWeeklyItemMilliseconds)
-                               : nextWeeklyItemMilliseconds
-                         : result;
-
-            result = nextMonthlyItemMilliseconds > 0
-                         ? result > 0
-                               ? Math.Min(result, nextMonthlyItemMilliseconds)
-                               : nextMonthlyItemMilliseconds
-                         : result;
-            
-
-            return result;
-        }
         public double GetNextOneTimeItemInMilliseconds()
         {
             double result = default(double);
@@ -191,7 +166,6 @@ namespace GenericWindowsService.BL
 
             return result;
         }
-
         public double GetNextWeeklyItemMilliseconds(DayOfWeek today, DateTime compareDate)
         {
             double result = default(double);
@@ -227,7 +201,6 @@ namespace GenericWindowsService.BL
 
             return result;
         }
-
         public double GetNextMonthlyItemMilliseconds(byte month, DateTime compareDate)
         {
             double result = default(double);
@@ -264,5 +237,31 @@ namespace GenericWindowsService.BL
             return result;
 
         }
+
+        public double GetNextItemMilliseconds()
+        {
+            double result;
+
+            double nextOneTimeItemInMilliseconds = GetNextOneTimeItemInMilliseconds();
+            double nextWeeklyItemMilliseconds = GetNextWeeklyItemMilliseconds(SystemTime.Now().DayOfWeek, SystemTime.Now());
+            double nextMonthlyItemMilliseconds = GetNextMonthlyItemMilliseconds((byte)SystemTime.Now().Month, SystemTime.Now());
+
+            result = nextOneTimeItemInMilliseconds > 0 ? nextOneTimeItemInMilliseconds : default(double);
+            result = nextWeeklyItemMilliseconds > 0
+                         ? result > 0
+                               ? Math.Min(result, nextWeeklyItemMilliseconds)
+                               : nextWeeklyItemMilliseconds
+                         : result;
+
+            result = nextMonthlyItemMilliseconds > 0
+                         ? result > 0
+                               ? Math.Min(result, nextMonthlyItemMilliseconds)
+                               : nextMonthlyItemMilliseconds
+                         : result;
+
+
+            return result;
+        }
+
     }
 }

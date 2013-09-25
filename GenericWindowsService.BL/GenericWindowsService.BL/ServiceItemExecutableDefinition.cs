@@ -4,6 +4,7 @@ namespace GenericWindowsService.BL
 {
     public class ServiceItemExecutableDefinition : IExecutableDefinition
     {
+        public string ServiceName { get; set; }
         public string DllName { get; set; }
         public string FullyQualifiedClassName { get; set; }
         public string MethodName { get; set; }
