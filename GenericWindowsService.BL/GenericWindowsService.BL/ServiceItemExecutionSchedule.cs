@@ -7,24 +7,26 @@ namespace GenericWindowsService.BL
     public class ServiceItemExecutionSchedule : IExecutionSchedule
     {
         public List<DateTime> OneTimeSchedule { get; set; }
-        private Dictionary<byte, Dictionary<byte, List<TimeSpan>>> _monthlySchedule { get; set; }
         private Dictionary<DayOfWeek, List<TimeSpan>> _weeklySchedule { get; set; }
-
-
+        private Dictionary<byte, List<TimeSpan>> _monthlySchedule { get; set; }
 
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
-
 
         public ServiceItemExecutionSchedule()
         {
             OneTimeSchedule = new List<DateTime>();
             _weeklySchedule = new Dictionary<DayOfWeek, List<TimeSpan>>();
-            _monthlySchedule = new Dictionary<byte, Dictionary<byte, List<TimeSpan>>>();
+            _monthlySchedule = new Dictionary<byte, List<TimeSpan>>();
 
             foreach (DayOfWeek day in Enum.GetValues(typeof(DayOfWeek)))
             {
                 _weeklySchedule.Add(day, new List<TimeSpan>());
+            }
+
+            for (byte month = 0; month < 13; month++)
+            {
+                _monthlySchedule[month] = new List<TimeSpan>();
             }
         }
 
@@ -61,6 +63,60 @@ namespace GenericWindowsService.BL
                     _weeklySchedule[pair.Key].Remove(time);
                 }
             }
+        }
+
+        public void AddMonthlySchedule(byte month, TimeSpan time)
+        {
+            _monthlySchedule[month].Add(time);
+        }
+
+        public List<TimeSpan> GetMonthlySchedule(byte month, bool checkStartDate = true, bool checkEndDate = true)
+        {
+            List<TimeSpan> result = new List<TimeSpan>();
+
+            foreach (TimeSpan time in _monthlySchedule[month])
+            {
+                DateTime currentTime = new DateTime(SystemTime.Now().Year, month, time.Days, time.Hours, time.Minutes, time.Seconds, time.Milliseconds);
+
+                if (checkStartDate || checkEndDate)
+                {
+                    if (checkStartDate)
+                    {
+                        if(currentTime >= StartDate)
+                        {
+                            if (checkEndDate)
+                            {
+                                if (currentTime <= EndDate)
+                                {
+                                    result.Add(time);
+                                }
+                                else
+                                {
+                                    continue;
+                                }
+                            }
+                            else
+                            {
+                                result.Add(time);
+                            }    
+                        }
+                        else
+                        {
+                            continue;
+                        }
+                    }
+                    else if (checkEndDate && currentTime <= EndDate)
+                    {
+                        result.Add(time);
+                    }
+                }
+                else
+                {
+                    result.Add(time);
+                }
+            }
+
+            return result;
         }
 
 
@@ -102,14 +158,22 @@ namespace GenericWindowsService.BL
 
             double nextOneTimeItemInMilliseconds = GetNextOneTimeItemInMilliseconds();
             double nextWeeklyItemMilliseconds = GetNextWeeklyItemMilliseconds(SystemTime.Now().DayOfWeek, SystemTime.Now());
+            double nextMonthlyItemMilliseconds = GetNextMonthlyItemMilliseconds((byte)SystemTime.Now().Month, SystemTime.Now());
 
             result = nextOneTimeItemInMilliseconds > 0 ? nextOneTimeItemInMilliseconds : default(double);
-            result = nextWeeklyItemMilliseconds > 0 
-                ? result > 0 
-                    ? Math.Min(result, nextWeeklyItemMilliseconds) 
-                    : nextWeeklyItemMilliseconds
-                : result;
+            result = nextWeeklyItemMilliseconds > 0
+                         ? result > 0
+                               ? Math.Min(result, nextWeeklyItemMilliseconds)
+                               : nextWeeklyItemMilliseconds
+                         : result;
+
+            result = nextMonthlyItemMilliseconds > 0
+                         ? result > 0
+                               ? Math.Min(result, nextMonthlyItemMilliseconds)
+                               : nextMonthlyItemMilliseconds
+                         : result;
             
+
             return result;
         }
         public double GetNextOneTimeItemInMilliseconds()
@@ -118,7 +182,11 @@ namespace GenericWindowsService.BL
 
             if (OneTimeSchedule.Count > 0)
             {
-                result = OneTimeSchedule.Min().Subtract(SystemTime.Now()).TotalMilliseconds;
+                result = (from date in OneTimeSchedule
+                          where date > SystemTime.Now() &&
+                          (StartDate == default(DateTime) || date > StartDate) &&
+                          (EndDate == default(DateTime) || date < EndDate)
+                          select date).Min().Subtract(SystemTime.Now()).TotalMilliseconds;
             }
 
             return result;
@@ -158,6 +226,43 @@ namespace GenericWindowsService.BL
             }
 
             return result;
+        }
+
+        public double GetNextMonthlyItemMilliseconds(byte month, DateTime compareDate)
+        {
+            double result = default(double);
+
+            List<TimeSpan> monthList = _monthlySchedule[month];
+            DateTime minimumNextDateTime = default(DateTime);
+
+            foreach (TimeSpan timeSpan in monthList)
+            {
+                DateTime current = new DateTime(compareDate.Year, compareDate.Month, compareDate.Day, timeSpan.Hours,
+                                                timeSpan.Minutes, timeSpan.Seconds);
+
+                if (current > compareDate)
+                {
+                    if (minimumNextDateTime == default(DateTime))
+                    {
+                        minimumNextDateTime = current;
+                    }
+                    else
+                    {
+                        if (minimumNextDateTime > current)
+                        {
+                            minimumNextDateTime = current;
+                        }
+                    }
+                }
+            }
+
+            if (minimumNextDateTime != default(DateTime) && minimumNextDateTime > compareDate)
+            {
+                result = minimumNextDateTime.Subtract(compareDate).TotalMilliseconds;
+            }
+
+            return result;
+
         }
     }
 }

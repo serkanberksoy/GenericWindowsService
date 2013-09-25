@@ -13,5 +13,7 @@ namespace GenericWindowsService.BL
         DateTime EndDate { get; set; }
         void AddWeeklyRepeatingSchedule(List<DayOfWeek> days, TimeSpan startTime, TimeSpan endTime, TimeSpan interval);
         void ExcludeWeeklySchedule(IEnumerable<DayOfWeek> dayOfWeeks, TimeSpan startTime, TimeSpan endTime);
+        void AddMonthlySchedule(byte month, TimeSpan time);
+        List<TimeSpan> GetMonthlySchedule(byte month, bool checkStartDate = true, bool checkEndDate = true);
     }
 }
