@@ -167,8 +167,7 @@ namespace GenericWindowsService.Tests
             
             Assert.AreEqual(_executionSchedule.GetNextItemMilliseconds() , TENMINUTEINMS);
         }
-
-
+        
         [Test]
         public void GetMinimumDateForPassedOneTimeScheduleTimesTest()
         {
